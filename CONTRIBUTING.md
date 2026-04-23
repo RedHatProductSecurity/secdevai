@@ -29,3 +29,28 @@ For guidance on adding new security context such as rules, tools, or languages, 
 
 We encourage you to contribute your context extensions back to help the community! AI-generated code is absolutely welcome, however, just make sure to test your changes and provide clear descriptions in your PR. Every contribution, big or small, helps make SecDevAI better.
 
+## Local Development
+
+### Running tests
+
+From the `secdevai` repository run:
+
+```sh
+uv run pytest
+```
+
+### pre-commit hooks
+
+Install pre-commit hooks:
+
+```sh
+uv run pre-commit install
+```
+
+### Running
+
+From another repository run:
+
+```sh
+uvx --no-cache /path/to/secdevai
+```

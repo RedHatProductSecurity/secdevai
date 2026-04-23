@@ -48,7 +48,9 @@ def _find_module_dir() -> Path | None:
 
 @app.command()
 def init(
-    project_path: str = typer.Argument(".", help="Path to project directory (defaults to current directory)"),
+    project_path: str = typer.Argument(
+        ".", help="Path to project directory (defaults to current directory)"
+    ),
 ):
     """Initialize SecDevAI in a project directory."""
     target_dir = Path(project_path).expanduser().resolve()
@@ -83,22 +85,21 @@ class ModuleDeployer:
     For Gemini CLI, .md files inside commands/ are converted to .toml format.
     """
 
+    SUPPORTED_PLATFORMS = {"cursor", "claude", "gemini"}
+    DEFAULT_PLATFORMS = ["cursor", "claude"]
+
     def __init__(self, module_dir: Path):
         """Initialize module deployer."""
         self.module_dir = module_dir
 
     def detect_platforms(self, target_dir: Path) -> list[str]:
         """Detect which AI assistant platforms are present."""
-        platforms = []
-        for platform in ("cursor", "claude", "gemini"):
-            if (target_dir / f".{platform}").exists():
-                platforms.append(platform)
-
-        # If no platforms detected, default to cursor and claude
-        if not platforms:
-            platforms = ["cursor", "claude"]
-
-        return platforms
+        platforms = [
+            platform
+            for platform in ModuleDeployer.SUPPORTED_PLATFORMS
+            if (target_dir / f".{platform}").exists()
+        ]
+        return platforms or ModuleDeployer.DEFAULT_PLATFORMS
 
     def _convert_md_to_toml(self, md_content: str) -> str:
         """Convert markdown command to Gemini CLI .toml format.
@@ -146,37 +147,36 @@ prompt = """
         console.print(f"[dim]Detected platforms: {', '.join(platforms)}[/dim]\n")
 
         # Collect all files from lola-module/ (preserving relative paths)
-        source_files = sorted(
-            f for f in self.module_dir.rglob("*") if f.is_file()
-        )
+        # note: rglob is recursive glob **/*
+        source_files = sorted(f for f in self.module_dir.rglob("*") if f.is_file())
 
         for platform in platforms:
             platform_dir = target_dir / f".{platform}"
-            deployed_count = 0
 
             for source_path in source_files:
                 rel_path = source_path.relative_to(self.module_dir)
 
                 # For Gemini CLI: convert commands/*.md to .toml
-                if platform == "gemini" and self._is_commands_dir(rel_path) and source_path.suffix == ".md":
-                    toml_content = self._convert_md_to_toml(source_path.read_text())
+                if (
+                    platform == "gemini"
+                    and self._is_commands_dir(rel_path)
+                    and source_path.suffix == ".md"
+                ):
+                    toml_content = self._convert_md_to_toml(source_path.read_text(encoding="utf-8"))
                     target_path = platform_dir / rel_path.with_suffix(".toml")
                     target_path.parent.mkdir(parents=True, exist_ok=True)
-                    target_path.write_text(toml_content)
-                else:
-                    target_path = platform_dir / rel_path
-                    target_path.parent.mkdir(parents=True, exist_ok=True)
-                    target_path.write_bytes(source_path.read_bytes())
+                    target_path.write_text(toml_content, encoding="utf-8")
+                    continue
+
+                target_path = platform_dir / rel_path
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                target_path.write_bytes(source_path.read_bytes())
 
                 # Make shell scripts executable
                 if target_path.suffix == ".sh":
                     self._make_executable(target_path)
 
-                deployed_count += 1
-
-            console.print(
-                f"[green]✓[/green] Deployed {deployed_count} files to .{platform}/"
-            )
+            console.print(f"[green]✓[/green] Deployed {len(source_files)} files to .{platform}/")
 
     def _make_executable(self, file_path: Path):
         """Make file executable by adding +x permissions."""
@@ -186,4 +186,3 @@ prompt = """
 
 if __name__ == "__main__":
     main()
-

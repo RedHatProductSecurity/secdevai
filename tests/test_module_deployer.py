@@ -7,7 +7,6 @@ import pytest
 
 from secdevai_cli import ModuleDeployer
 
-
 # ---------------------------------------------------------------------------
 # detect_platforms
 # ---------------------------------------------------------------------------
@@ -32,15 +31,16 @@ class TestDetectPlatforms:
         assert deployer.detect_platforms(target_project) == ["gemini"]
 
     def test_detects_multiple_platforms(self, fake_lola_module, target_project):
-        for name in (".cursor", ".claude", ".gemini"):
-            (target_project / name).mkdir()
+        for name in ModuleDeployer.SUPPORTED_PLATFORMS:
+            (target_project / f".{name}").mkdir()
         deployer = ModuleDeployer(fake_lola_module)
         platforms = deployer.detect_platforms(target_project)
-        assert set(platforms) == {"cursor", "claude", "gemini"}
+        assert set(platforms) == ModuleDeployer.SUPPORTED_PLATFORMS
 
     def test_defaults_to_cursor_and_claude_when_none(self, fake_lola_module, target_project):
         deployer = ModuleDeployer(fake_lola_module)
-        assert set(deployer.detect_platforms(target_project)) == {"cursor", "claude"}
+        platforms = deployer.detect_platforms(target_project)
+        assert set(platforms) == set(ModuleDeployer.DEFAULT_PLATFORMS)
 
 
 # ---------------------------------------------------------------------------
