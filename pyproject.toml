@@ -23,8 +23,8 @@ packages = ["src/secdevai_cli"]
 [tool.hatch.build.targets.wheel.shared-data]
 "lola-module" = "share/secdevai/lola-module"
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest>=7.0.0",
     "ruff>=0.1.0",
 ]
@@ -35,4 +35,3 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]
-
