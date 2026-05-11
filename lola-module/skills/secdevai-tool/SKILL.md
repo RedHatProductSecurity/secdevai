@@ -130,22 +130,23 @@ ${BASE_DIR}/scripts/container-run.sh gcr.io/openssf/scorecard:stable --local . -
 **Usage:**
 ```sh
 # semgrep — requires a locally built image (see build instructions below)
-${BASE_DIR}/scripts/container-run.sh --env HOME=/tmp local/semgrep scan /src --config /sgrules/<lang> --sarif --metrics off --disable-version-check
+${BASE_DIR}/scripts/container-run.sh \
+    --env HOME=/tmp \
+    secdevai/semgrep:local \
+    scan /src \
+    --config /sgrules/<lang> \
+    --sarif \
+    --metrics off \
+    --disable-version-check
 ```
 
-**Semgrep**: Uses a locally built image (`local/semgrep`) that bundles two offline rule sets:
+**Semgrep**: Uses a locally built image (`secdevai/semgrep:local`) that bundles two offline rule sets:
 - `/sgrules` — [semgrep/semgrep-rules](https://github.com/semgrep/semgrep-rules) (community rules)
 - `/sgrules-trail` — [trailofbits/semgrep-rules](https://github.com/trailofbits/semgrep-rules) (security-focused, AGPL-3.0)
 
 **Build Semgrep container**:
 ```sh
-# Docker
-docker buildx build . -t local/semgrep \
-  -f ${BASE_DIR}/lola-module/skills/secdevai-tool/scripts/Dockerfile.semgrep
-
-# Podman
-podman build . -t local/semgrep \
-  -f ${BASE_DIR}/lola-module/skills/secdevai-tool/scripts/Dockerfile.semgrep
+${BASE_DIR}/scripts/build-semgrep.sh
 ```
 
 **Semgrep config resolution**
@@ -244,7 +245,7 @@ language_detection:
 ```sh
 ${BASE_DIR}/scripts/container-run.sh \
   --env HOME=/tmp \
-  local/semgrep \
+  secdevai/semgrep:local \
   scan /src \
   --config /sgrules/go \
   --config /sgrules-trail/go \
