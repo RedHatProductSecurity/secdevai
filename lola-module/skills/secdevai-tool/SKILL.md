@@ -27,6 +27,36 @@ Run external security analysis tools inside isolated, read-only containers. Invo
 | scorecard | https://github.com/ossf/scorecard | `gcr.io/openssf/scorecard:stable` | All |
 | semgrep | https://github.com/semgrep/semgrep | `local/semgrep` (built locally) | Multi-language |
 
+```yaml
+tool_resolution:
+  python:
+    tools:
+      - bandit
+      - semgrep
+      - scorecard
+
+  go:
+    tools:
+      - gosec
+      - semgrep
+      - scorecard
+
+  java:
+    tools:
+      - semgrep
+      - scorecard
+
+  javascript:
+    tools:
+      - semgrep
+      - scorecard
+
+  rust:
+    tools:
+      - semgrep
+      - scorecard
+```
+
 ## Prerequisites
 
 Tools run exclusively inside containers for isolation and reproducibility. A container runtime is required:
@@ -34,9 +64,9 @@ Tools run exclusively inside containers for isolation and reproducibility. A con
 - **Podman** (recommended): `brew install podman` / `dnf install podman` / `apt install podman`
 - **Docker**: https://docs.docker.com/get-docker/
 
-The helper script `scripts/container-run.sh` auto-detects podman or docker at runtime, runs containers with hardened defaults (all capabilities dropped, no-new-privileges, network disabled, resource limits), and prints installation guidance if neither runtime is found.
+The helper script `scripts/container-run.sh` auto-detects `podman` or `docker` at runtime, runs containers with hardened defaults (all capabilities dropped, no-new-privileges, network disabled, resource limits), and prints installation guidance if neither runtime is found.
 
-Note: All scripts are under the BASE directory (e.g.: `.claude/` or `.cursor/`).
+**Note**: All scripts are under the `${BASE_DIR}` directory (e.g.: `.claude/` or `.cursor/`).
 
 ## Expected Response
 
@@ -50,54 +80,180 @@ When this skill is invoked, follow these steps:
 - Show usage examples
 - Do NOT run any tool automatically — wait for user input
 
+```yaml
+input_schema:
+  tool:
+    - bandit
+    - gosec
+    - scorecard
+    - semgrep
+    - all
+```
+
 ### Step 2: Run Tool
 
-Use `scripts/container-run.sh` to run the container image for the chosen tool. The script auto-detects podman/docker, mounts the current directory read-only at `/src`, and forwards any extra arguments to the container entrypoint.
+Use `${BASE_DIR}/scripts/container-run.sh` to run the container image for the chosen tool. The script auto-detects podman/docker, mounts the current directory read-only at `/src`, and forwards any extra arguments to the container entrypoint.
 
-```bash
+```sh
 # Usage: scripts/container-run.sh [--env K=V]... <image> [args...]
 # Network is always disabled (--network=none).
+```
 
+#### Tool: Bandit
+
+**Usage:**
+```sh
 # bandit (Python)
-scripts/container-run.sh ghcr.io/pycqa/bandit/bandit -r . -f json -q
+${BASE_DIR}/scripts/container-run.sh ghcr.io/pycqa/bandit/bandit -r . -f json -q
+```
 
+#### Tool: GoSec
+
+**Usage:**
+```sh
 # gosec (Go)
-scripts/container-run.sh ghcr.io/securego/gosec:latest -fmt=sarif ./...
+${BASE_DIR}/scripts/container-run.sh ghcr.io/securego/gosec:latest -fmt=sarif ./...
+```
 
+#### Tool: Scorecard
+
+**Usage:**
+```sh
 # scorecard (local-only, filesystem checks only — no GitHub API access)
-scripts/container-run.sh gcr.io/openssf/scorecard:stable --local . --format json
-
-# semgrep — requires a locally built image (see build instructions below)
-scripts/container-run.sh --env HOME=/tmp local/semgrep scan /src --config /sgrules/<lang> --sarif --metrics off --disable-version-check
+${BASE_DIR}/scripts/container-run.sh gcr.io/openssf/scorecard:stable --local . --format json
 ```
 
 **Scorecard**: Runs in `--local` mode only (no network, no GitHub token). Filesystem-based checks work (pinned dependencies, SECURITY.md, dangerous workflows); checks requiring the GitHub API (branch protection, CI/CD status) are skipped.
+
+#### Tool: semgrep
+
+**Usage:**
+```sh
+# semgrep — requires a locally built image (see build instructions below)
+${BASE_DIR}/scripts/container-run.sh --env HOME=/tmp local/semgrep scan /src --config /sgrules/<lang> --sarif --metrics off --disable-version-check
+```
 
 **Semgrep**: Uses a locally built image (`local/semgrep`) that bundles two offline rule sets:
 - `/sgrules` — [semgrep/semgrep-rules](https://github.com/semgrep/semgrep-rules) (community rules)
 - `/sgrules-trail` — [trailofbits/semgrep-rules](https://github.com/trailofbits/semgrep-rules) (security-focused, AGPL-3.0)
 
-Because the rules are baked into the image, the container runs with `--network=none` like all other tools. `--env HOME=/tmp` is required because semgrep writes cache state to `$HOME` and the container filesystem is read-only (only `/tmp` is writable).
-
-Build the image once from the project root (network required at build time only). Determine `<platform-dir>` from the deployment context (`.cursor`, `.claude`, or `.gemini`):
-
-```bash
+**Build Semgrep container**:
+```sh
+# Docker
 docker buildx build . -t local/semgrep \
-  -f <platform-dir>/lola-module/skills/secdevai-tool/scripts/Dockerfile.semgrep
+  -f ${BASE_DIR}/lola-module/skills/secdevai-tool/scripts/Dockerfile.semgrep
+
+# Podman
+podman build . -t local/semgrep \
+  -f ${BASE_DIR}/lola-module/skills/secdevai-tool/scripts/Dockerfile.semgrep
 ```
 
-Select `--config` based on the detected project language:
+**Semgrep config resolution**
+```yaml
+semgrep_config_resolution:
+  python:
+    configs:
+      - /sgrules/python
 
-| Language | `--config` flags |
-|----------|-----------------|
-| Python | `--config /sgrules/python` |
-| Go | `--config /sgrules/go --config /sgrules-trail/go` |
-| JavaScript | `--config /sgrules/javascript` |
-| TypeScript | `--config /sgrules/typescript` |
-| Java | `--config /sgrules/java` |
-| Ruby | `--config /sgrules/ruby --config /sgrules-trail/ruby` |
-| Rust | `--config /sgrules/rust --config /sgrules-trail/rs` |
-| All | `--config /sgrules --config /sgrules-trail` |
+  go:
+    configs:
+      - /sgrules/go
+      - /sgrules-trail/go
+
+  javascript:
+    configs:
+      - /sgrules/javascript
+
+  typescript:
+    configs:
+      - /sgrules/typescript
+
+  java:
+    configs:
+      - /sgrules/java
+
+  ruby:
+    configs:
+      - /sgrules/ruby
+      - /sgrules-trail/ruby
+
+  rust:
+    configs:
+      - /sgrules/rust
+      - /sgrules-trail/rs
+
+  all:
+    configs:
+      - /sgrules
+      - /sgrules-trail
+```
+
+Select `--config` based on the detected project language.
+
+**Language detection:**
+```yaml
+language_detection:
+  python:
+    files:
+      - pyproject.toml
+      - requirements.txt
+      - setup.py
+      - Pipfile
+      - poetry.lock
+      - "*.py"
+
+  go:
+    files:
+      - go.mod
+      - go.sum
+      - "*.go"
+
+  typescript:
+    files:
+      - tsconfig.json
+      - "*.ts"
+      - "*.tsx"
+
+  javascript:
+    files:
+      - package.json
+      - "*.js"
+      - "*.jsx"
+
+  java:
+    files:
+      - pom.xml
+      - build.gradle
+      - build.gradle.kts
+      - "*.java"
+
+  ruby:
+    files:
+      - Gemfile
+      - Gemfile.lock
+      - "*.rb"
+
+  rust:
+    files:
+      - Cargo.toml
+      - Cargo.lock
+      - "*.rs"
+```
+
+**Example Resolution:**
+```sh
+${BASE_DIR}/scripts/container-run.sh \
+  --env HOME=/tmp \
+  local/semgrep \
+  scan /src \
+  --config /sgrules/go \
+  --config /sgrules-trail/go \
+  --sarif \
+  --metrics off \
+  --disable-version-check
+```
+
+#### Tool: all
 
 **If `all` is specified**: detect the project language and run each relevant(see Available Tools) tool sequentially, collecting all JSON output. 
 
