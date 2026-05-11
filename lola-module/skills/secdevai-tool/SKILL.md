@@ -127,24 +127,11 @@ ${BASE_DIR}/scripts/container-run.sh gcr.io/openssf/scorecard:stable --local . -
 
 #### Tool: semgrep
 
-**Usage:**
-```sh
-# semgrep — requires a locally built image (see build instructions below)
-${BASE_DIR}/scripts/container-run.sh \
-    --env HOME=/tmp \
-    secdevai/semgrep:local \
-    scan /src \
-    --config /sgrules/<lang> \
-    --sarif \
-    --metrics off \
-    --disable-version-check
-```
-
 **Semgrep**: Uses a locally built image (`secdevai/semgrep:local`) that bundles two offline rule sets:
 - `/sgrules` — [semgrep/semgrep-rules](https://github.com/semgrep/semgrep-rules) (community rules)
 - `/sgrules-trail` — [trailofbits/semgrep-rules](https://github.com/trailofbits/semgrep-rules) (security-focused, AGPL-3.0)
 
-**Build Semgrep container**:
+**Build Semgrep container**: (`secdevai/semgrep:local`)
 ```sh
 ${BASE_DIR}/scripts/build-semgrep.sh
 ```
@@ -188,8 +175,6 @@ semgrep_config_resolution:
       - /sgrules
       - /sgrules-trail
 ```
-
-Select `--config` based on the detected project language.
 
 **Language detection:**
 ```yaml
@@ -241,7 +226,21 @@ language_detection:
       - "*.rs"
 ```
 
-**Example Resolution:**
+Select `--config` based on the detected project language.
+
+**Usage:**
+```sh
+${BASE_DIR}/scripts/container-run.sh \
+    --env HOME=/tmp \
+    secdevai/semgrep:local \
+    scan /src \
+    --config /sgrules/<lang> \
+    --sarif \
+    --metrics off \
+    --disable-version-check
+```
+
+**Example resolution for Golang:**
 ```sh
 ${BASE_DIR}/scripts/container-run.sh \
   --env HOME=/tmp \
